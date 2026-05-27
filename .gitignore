@@ -1,0 +1,66 @@
+# Environment variables
+.env
+.env.*
+*.env
+
+#  Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+#  Virtual environments
+venv/
+env/
+.venv/
+ENV/
+
+#  Django stuff
+*.log
+*.pot
+*.pyc
+db.sqlite3
+media/
+staticfiles/
+
+#  Secret files
+secrets.json
+*.key
+*.pem
+
+#  Testing / coverage
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+
+#  Build / packaging
+build/
+dist/
+*.egg-info/
+
+#  AI / model cache (important for HF)
+.cache/
+huggingface/
+*.bin
+*.pt
+
+#  VS Code / IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+#  Logs
+*.log
+
+
+node_modules/
+
+
+*.pid
+docker-compose.override.yml
+
+
+.ipynb_checkpoints/
