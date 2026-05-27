@@ -16,3 +16,13 @@ class Doctor(models.Model):
 
     is_verified = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)  # TEMP
+
+class DoctorSlot(models.Model):
+    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE, related_name='slots')
+    day_of_week = models.CharField(max_length=20)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    is_blocked = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.doctor.name} - {self.day_of_week} ({self.start_time} - {self.end_time})"

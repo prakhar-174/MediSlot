@@ -22,6 +22,8 @@ class RegisterView(APIView):
         username = request.data.get("username")
         password = request.data.get("password")
         role = request.data.get("role", UserProfile.PATIENT)
+        name = request.data.get("name", "")
+        email = request.data.get("email", "")
 
         if not username or not password:
             return Response({"error": "username and password required"}, status=400)
@@ -31,15 +33,23 @@ class RegisterView(APIView):
 
         
         user = User.objects.create_user(username=username, password=password)
-
+        if name:
+            parts = name.split(" ", 1)
+            user.first_name = parts[0]
+            if len(parts) > 1:
+                user.last_name = parts[1]
+        if email:
+            user.email = email
+        user.save()
        
         profile, created = UserProfile.objects.get_or_create(
             user=user,
-            defaults={"role": role}
+            defaults={"role": role, "email": email}
         )
 
         if not created:
             profile.role = role
+            profile.email = email
             profile.save()
 
         tokens = get_tokens(user)
@@ -76,10 +86,14 @@ class MeView(APIView):
 
     def get(self, request):
         role = getattr(request.user.profile, "role", None)
+        email = getattr(request.user.profile, "email", request.user.email)
+        name = f"{request.user.first_name} {request.user.last_name}".strip()
 
         return Response({
             "id": request.user.id,
             "username": request.user.username,
+            "name": name,
+            "email": email,
             "role": role,
         })
 

@@ -17,7 +17,7 @@ Hello {user.username},
 Your appointment has been {status}.
 
 Thank you,
-Aarogya Team
+MediSlot Team
 """
 
     send_mail(
