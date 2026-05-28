@@ -52,11 +52,29 @@ class RegisterView(APIView):
             profile.email = email
             profile.save()
 
+        if role == UserProfile.DOCTOR:
+            from doctors.models import Doctor, DoctorSlot
+            from datetime import time
+            specialization = request.data.get("specialization", "")
+            available_days = request.data.get("availableDays", [])
+            doctor, doc_created = Doctor.objects.get_or_create(
+                user=user,
+                defaults={"name": name, "specialization": specialization}
+            )
+            for day in available_days:
+                DoctorSlot.objects.create(
+                    doctor=doctor,
+                    day_of_week=day,
+                    start_time=time(9, 0),
+                    end_time=time(17, 0)
+                )
+
         tokens = get_tokens(user)
 
         return Response({
             "access": tokens["access"],
-            "role": profile.role
+            "role": profile.role,
+            "name": name
         }, status=201)
 
 class LoginView(APIView):
@@ -76,7 +94,8 @@ class LoginView(APIView):
 
         return Response({
             "access": tokens["access"],
-            "role": role
+            "role": role,
+            "name": f"{user.first_name} {user.last_name}".strip()
         })
 
 
