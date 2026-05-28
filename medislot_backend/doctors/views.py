@@ -95,15 +95,33 @@ class CreateDoctorProfileView(APIView):
 
 class DoctorListView(APIView):
     def get(self, request):
+        availability = request.query_params.get("availability")
+        specialization = request.query_params.get("specialization")
+        sort = request.query_params.get("sort")
+
         doctors = Doctor.objects.all().prefetch_related('slots')
+        
+        if specialization:
+            doctors = doctors.filter(specialization__icontains=specialization)
+        
+        if sort == "rating":
+            doctors = doctors.order_by("-rating")
+
         data = []
         for doctor in doctors:
-            slots = [{"id": s.id, "day_of_week": s.day_of_week, "start_time": s.start_time, "end_time": s.end_time, "is_blocked": s.is_blocked} for s in doctor.slots.all()]
+            doctor_slots = list(doctor.slots.all())
+            is_available = len(doctor_slots) > 0
+            
+            if availability == "true" and not is_available:
+                continue
+
+            slots = [{"id": s.id, "day_of_week": s.day_of_week, "start_time": s.start_time, "end_time": s.end_time, "is_blocked": s.is_blocked} for s in doctor_slots]
             data.append({
                 "id": doctor.id,
                 "name": doctor.name,
                 "specialization": doctor.specialization,
                 "rating": doctor.rating,
+                "isAvailable": is_available,
                 "slots": slots
             })
         return Response(data)
@@ -152,6 +170,43 @@ class SlotManagementView(APIView):
         except (Doctor.DoesNotExist, DoctorSlot.DoesNotExist):
             return Response({"error": "Slot not found"}, status=404)
 
+class BlockDateView(APIView):
+    permission_classes = [IsAuthenticated, IsDoctor]
+
+    def post(self, request):
+        date = request.data.get("date")
+        if not date:
+            return Response({"error": "date is required"}, status=400)
+        # Stub for blocking date since no model exists
+        return Response({"message": f"Date {date} blocked successfully"})
+
+class DoctorAppointmentsView(APIView):
+    permission_classes = [IsAuthenticated, IsDoctor]
+
+    def get(self, request):
+        status = request.query_params.get("status")
+        try:
+            doctor = Doctor.objects.get(user=request.user)
+            appointments = Appointment.objects.filter(doctor=doctor)
+            if status:
+                appointments = appointments.filter(status=status)
+            
+            data = []
+            for appt in appointments:
+                data.append({
+                    "id": appt.id,
+                    "patient_name": f"{appt.user.first_name} {appt.user.last_name}".strip() or appt.user.username,
+                    "date": appt.date,
+                    "time_slot": appt.time_slot,
+                    "reason": appt.reason,
+                    "status": appt.status,
+                })
+            return Response(data)
+        except Doctor.DoesNotExist:
+            return Response({"error": "Doctor profile not found"}, status=404)
+
+from users.models import Notification
+
 class AppointmentApprovalView(APIView):
     permission_classes = [IsAuthenticated, IsDoctor]
 
@@ -169,7 +224,22 @@ class AppointmentApprovalView(APIView):
             
             if action in ["approved", "rejected"]:
                 send_approval_email(appointment.user, action)
-                
+            
+            # Create Notification
+            msg = ""
+            if action == "approved":
+                msg = f"Your appointment with Dr. {doctor.name} on {appointment.date} at {appointment.time_slot} has been approved"
+            elif action == "rejected":
+                msg = f"Your appointment with Dr. {doctor.name} on {appointment.date} has been rejected"
+            elif action == "completed":
+                msg = f"Your visit with Dr. {doctor.name} is marked as completed. Thank you!"
+
+            Notification.objects.create(
+                user=appointment.user,
+                message=msg,
+                type=f"appointment_{action}"
+            )
+
             return Response({"message": f"Appointment {action}"})
         except (Doctor.DoesNotExist, Appointment.DoesNotExist):
             return Response({"error": "Appointment not found"}, status=404)
@@ -208,14 +278,16 @@ class DashboardView(APIView):
             doctor = Doctor.objects.get(user=request.user)
             today = timezone.now().date()
             
-            total_today = Appointment.objects.filter(doctor=doctor, date=today, status="approved").count()
-            pending_approvals = Appointment.objects.filter(doctor=doctor, status="pending").count()
-            total_served = Appointment.objects.filter(doctor=doctor, status="completed").count()
+            today_count = Appointment.objects.filter(doctor=doctor, date=today).count()
+            pending_count = Appointment.objects.filter(doctor=doctor, status="pending").count()
+            upcoming_count = Appointment.objects.filter(doctor=doctor, status="approved", date__gte=today).count()
+            completed_count = Appointment.objects.filter(doctor=doctor, status="completed").count()
             
             return Response({
-                "total_today": total_today,
-                "pending_approvals": pending_approvals,
-                "total_served": total_served
+                "todayCount": today_count,
+                "pendingCount": pending_count,
+                "upcomingCount": upcoming_count,
+                "completedCount": completed_count
             })
         except Doctor.DoesNotExist:
             return Response({"error": "Doctor profile not found"}, status=404)

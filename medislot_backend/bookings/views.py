@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import Appointment
+from users.models import Notification
 
 class PreBookView(APIView):
     permission_classes = [IsAuthenticated]
@@ -22,6 +23,10 @@ class PreBookView(APIView):
         if not doctor_id or not date or not time_slot:
             return Response({"error": "doctor_id, date & time_slot required"}, status=400)
 
+        # Check if slot is already booked
+        if Appointment.objects.filter(doctor_id=doctor_id, date=date, time_slot=time_slot, status__in=['pending', 'approved', 'confirmed']).exists():
+            return Response({"error": "This slot is already booked. Please choose another."}, status=400)
+
 
         appointment = Appointment.objects.create(
             user=request.user,
@@ -30,6 +35,13 @@ class PreBookView(APIView):
             time_slot=time_slot,
             reason=reason,
             report_id=report_id
+        )
+
+        patient_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
+        Notification.objects.create(
+            user=appointment.doctor.user,
+            message=f"New appointment request from {patient_name} on {date} at {time_slot}",
+            type="appointment_sent"
         )
 
         return Response({
@@ -68,6 +80,14 @@ class CancelAppointmentView(APIView):
                 return Response({"error": "Only pending appointments can be cancelled"}, status=400)
             appt.status = "cancelled"
             appt.save()
+            
+            patient_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
+            Notification.objects.create(
+                user=appt.doctor.user,
+                message=f"Appointment with {patient_name} on {appt.date} at {appt.time_slot} has been cancelled",
+                type="appointment_cancelled"
+            )
+            
             return Response({"message": "Appointment cancelled successfully"})
         except Appointment.DoesNotExist:
             return Response({"error": "Appointment not found"}, status=404)

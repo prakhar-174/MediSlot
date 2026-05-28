@@ -10,6 +10,9 @@ const Auth = () => {
   const location = useLocation();
   const initialMode = location.pathname.includes('signup') ? 'signup' : 'login';
   const [mode, setMode] = useState(initialMode);
+  
+  const searchParams = new URLSearchParams(location.search);
+  const isExpired = searchParams.get('expired') === 'true';
 
   // Sync mode when location changes externally
   useEffect(() => {
@@ -85,7 +88,12 @@ const Auth = () => {
       {/* Right Panel - Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center bg-surface-strong p-6 lg:p-12">
         <div className="w-full max-w-md bg-white p-8 rounded-lg shadow-2 border border-text-tertiary/10">
-          
+          {isExpired && (
+            <div className="mb-6 p-3 bg-status-rejected/10 border border-status-rejected/20 rounded-md text-status-rejected text-sm text-center font-medium">
+              Session expired, please log in again
+            </div>
+          )}
+
           {/* Tab Switcher */}
           <div className="relative flex mb-8 border-b border-text-tertiary/20">
             <button

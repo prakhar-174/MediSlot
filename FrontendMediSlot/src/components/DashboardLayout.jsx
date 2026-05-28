@@ -1,16 +1,86 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Bell, LogOut } from 'lucide-react';
+import { Bell, LogOut, Check } from 'lucide-react';
+import { fetchApi } from '../utils/api';
+import { useToast } from './Toast';
 
 const DashboardLayout = ({ role, navItems, children }) => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const userName = user.name || 'User';
+
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const dropdownRef = useRef(null);
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  useEffect(() => {
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const loadNotifications = async () => {
+    try {
+      const data = await fetchApi('/auth/notifications/');
+      setNotifications(data);
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await fetchApi('/auth/notifications/read-all/', { method: 'PATCH' });
+      setNotifications(notifications.map(n => ({ ...n, is_read: true })));
+    } catch (error) {
+      showToast(error.message, 'error');
+    }
+  };
+
+  const handleMarkRead = async (id) => {
+    // Optimistic UI update
+    setNotifications(notifications.map(n => n.id === id ? { ...n, is_read: true } : n));
+    try {
+      await fetchApi(`/auth/notifications/${id}/read/`, { method: 'PATCH' });
+    } catch (error) {
+      // Revert if error
+      loadNotifications();
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     navigate('/login', { replace: true });
+  };
+
+  const timeSince = (dateString) => {
+    const date = new Date(dateString);
+    const seconds = Math.floor((new Date() - date) / 1000);
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + " years ago";
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + " months ago";
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + " days ago";
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + " hours ago";
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + " minutes ago";
+    return Math.floor(seconds) + " seconds ago";
   };
 
   return (
@@ -73,10 +143,63 @@ const DashboardLayout = ({ role, navItems, children }) => {
                 DOCTOR
               </span>
             )}
-            <button className="relative p-2 text-text-tertiary hover:text-text-primary duration-instant focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-surface-base rounded-full">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-status-rejected rounded-full"></span>
-            </button>
+            
+            {/* Notification Bell */}
+            <div className="relative" ref={dropdownRef}>
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative p-2 text-text-tertiary hover:text-text-primary duration-instant focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-surface-base rounded-full"
+              >
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-2 w-2 h-2 bg-status-rejected rounded-full ring-2 ring-white"></span>
+                )}
+              </button>
+
+              {/* Notification Dropdown */}
+              {showNotifications && (
+                <div className="absolute right-0 top-12 w-80 bg-white border border-text-tertiary/10 rounded-md shadow-2 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-fast">
+                  <div className="flex items-center justify-between p-3 border-b border-text-tertiary/10 bg-surface-strong">
+                    <h3 className="text-sm font-semibold text-text-primary">Notifications</h3>
+                    {unreadCount > 0 && (
+                      <button 
+                        onClick={handleMarkAllRead}
+                        className="text-xs text-role-patient hover:underline font-medium"
+                      >
+                        Mark all as read
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-[400px] overflow-y-auto flex flex-col">
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-text-tertiary">
+                        No notifications yet.
+                      </div>
+                    ) : (
+                      notifications.map(notif => (
+                        <div 
+                          key={notif.id} 
+                          onClick={() => !notif.is_read && handleMarkRead(notif.id)}
+                          className={`p-4 border-b border-text-tertiary/5 cursor-pointer flex flex-col gap-1 transition-colors duration-200 ${
+                            notif.is_read 
+                              ? 'bg-white opacity-70' 
+                              : 'bg-status-pending/5 border-l-4 border-l-status-pending'
+                          }`}
+                        >
+                          <p className={`text-sm leading-snug ${notif.is_read ? 'text-text-tertiary' : 'text-text-primary font-medium'}`}>
+                            {notif.message}
+                          </p>
+                          <span className="text-xs text-text-tertiary mt-1">
+                            {timeSince(notif.created_at)}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         </header>
 

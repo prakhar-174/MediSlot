@@ -1,110 +1,71 @@
-# MediSlot - Patient Appointment Booking System
+# MediSlot
 
----
+MediSlot is a modern, responsive web application designed to streamline healthcare clinic operations by empowering patients and doctors with intelligent appointment scheduling. It features role-based dashboards, real-time notification alerts, and dynamic slot management, all wrapped in a premium, fluid user interface.
 
-## Overview
+## Tech Stack
 
-MediSlot is a web-based patient appointment booking platform designed to eliminate the inefficiencies of manual appointment management in small clinics and healthcare centers. The platform enables patients to discover doctors and book appointments online, while giving doctors and admins full control over their schedules - all through a clean, role-based interface.
+| Layer | Technology |
+|---|---|
+| **Frontend** | React, Vite, GSAP (Animations), TailwindCSS (Custom Tokens) |
+| **Backend** | Python, Django, Django REST Framework |
+| **Database** | SQLite (Development) / PostgreSQL (Production ready) |
+| **Authentication** | JWT (JSON Web Tokens) via simplejwt |
 
----
+## Local Setup Instructions
 
-## Problem Being Solved
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/medislot.git
+   cd medislot
+   ```
 
-Small clinics still rely on phone calls and physical registers to manage appointments. This leads to:
+2. **Backend Setup**
+   ```bash
+   cd medislot_backend
+   python -m venv venv
+   source venv/Scripts/activate  # Or venv/bin/activate on macOS/Linux
+   pip install -r requirements.txt
+   python manage.py migrate
+   python manage.py runserver
+   ```
 
-- Double bookings and scheduling conflicts
-- Missed appointments with no reminder system
-- No centralized record of patient visit history
-- Doctors having no structured view of their daily schedule
+3. **Frontend Setup**
+   ```bash
+   # In a new terminal
+   cd FrontendMediSlot
+   npm install
+   npm run dev
+   ```
 
-MediSlot solves this by digitizing the entire appointment lifecycle - from booking to approval to completion.
+4. **Environment Variables**
+   Create a `.env` file in your frontend and backend root directories according to the reference below.
 
----
+## Features Implemented
 
-## User Roles
+- [x] **Role-Based Authentication**: Secure login and signup for both Patients and Doctors.
+- [x] **Patient Dashboard**: View, filter, and cancel upcoming appointments.
+- [x] **Doctor Discovery**: Search and filter doctors by availability, specialization, and rating.
+- [x] **Smart Booking Flow**: Restricts patient booking to the specific days the doctor has marked as available.
+- [x] **Doctor Dashboard**: Real-time overview of daily stats and pending approvals.
+- [x] **Schedule & Slot Management**: Doctors can define their weekly recurring availability or block specific dates out.
+- [x] **Notification System**: Real-time alerts for booking requests, approvals, rejections, and cancellations.
+- [x] **Premium UI/UX**: Fluid GSAP micro-animations, toast notifications, and strict adherence to modern design tokens.
 
-The platform supports two distinct roles:
+## Live Deployment
 
-| Role | Description |
-|------|-------------|
-| **Patient** | Can register, browse doctors, book appointments, and track history |
-| **Doctor / Admin** | Can manage slots, approve or reject bookings, and view daily schedules |
+Production URL: `[INSERT_LIVE_URL_HERE]`
 
----
+## Environment Variables Reference
 
-## Feature Requirements
+Below is an `.env.example` file showcasing all required keys for local development. Do not commit actual secrets!
 
-### Authentication (Both Roles)
+```env
+# Backend (.env)
+DJANGO_SECRET_KEY=your_secret_key_here
+DEBUG=True
+ALLOWED_HOSTS=127.0.0.1,localhost
+CORS_ALLOWED_ORIGINS=http://localhost:5173
 
-- User registration with name, email, password, and role selection (Patient / Doctor)
-- Secure login with JWT or session-based authentication
-- Role-based route protection (patients cannot access doctor dashboard and vice versa)
-- Logout functionality
-- Basic form validation and error messaging
-
----
-
-### Patient Features
-
-#### 1. Browse Doctors
-- View a list of all registered doctors
-- Each doctor card should display:
-  - Full name
-  - Specialization (e.g., Cardiologist, General Physician)
-  - Available days/timings
-  - A "Book Appointment" button
-
-#### 2. Book an Appointment
-- Patient selects a doctor and views their available time slots
-- Patient picks a preferred date and available slot
-- Patient adds an optional reason/notes for the visit
-- Appointment is created with a **Pending** status upon submission
-- Patient receives confirmation that the booking request has been sent
-
-#### 3. Appointment History
-- Patient can view all their appointments (past and upcoming)
-- Each entry shows:
-  - Doctor name and specialization
-  - Date and time slot
-  - Status: Pending / Approved / Rejected / Completed
-- Patient can cancel a pending appointment
-
----
-
-### Doctor / Admin Features
-
-#### 1. Slot Management
-- Doctor can define their weekly availability (days + time slots)
-- Doctor can add new slots or remove existing ones
-- Doctor can block specific dates (e.g., holidays, leave)
-
-#### 2. Appointment Approval
-- Doctor sees all incoming appointment requests with status **Pending**
-- Doctor can **Approve** or **Reject** each request
-- Optional: Doctor can add a rejection reason or note
-
-#### 3. Daily Schedule View
-- Doctor can view a calendar or list view of approved appointments for any given day
-- Each entry shows patient name, time slot, and visit reason
-- Doctor can mark an appointment as **Completed** after the visit
-
-#### 4. Doctor Dashboard
-- Summary cards showing:
-  - Total appointments today
-  - Pending approvals
-  - Total patients served (all time)
-- Quick access to today's schedule
-
----
-
-## Appointment Status Flow
-
+# Frontend (.env)
+VITE_API_URL=http://127.0.0.1:8000/api
 ```
-Patient Books → [PENDING] → Doctor Approves → [APPROVED] → Visit Done → [COMPLETED]
-                                ↓
-                         Doctor Rejects → [REJECTED]
-                                ↓
-                       Patient Cancels → [CANCELLED]
-```
-
----

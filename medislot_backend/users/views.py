@@ -107,26 +107,77 @@ class MeView(APIView):
         role = getattr(request.user.profile, "role", None)
         email = getattr(request.user.profile, "email", request.user.email)
         name = f"{request.user.first_name} {request.user.last_name}".strip()
+        phone = getattr(request.user.profile, "phone", "")
 
         return Response({
             "id": request.user.id,
             "username": request.user.username,
             "name": name,
             "email": email,
+            "phone": phone,
             "role": role,
         })
 
 
-class UpdateEmailView(APIView):
+class UpdateProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         email = request.data.get("email")
+        name = request.data.get("name")
+        phone = request.data.get("phone")
 
-        if not email:
-            return Response({"error": "email required"}, status=400)
-
-        request.user.profile.email = email
+        if email:
+            request.user.profile.email = email
+            request.user.email = email
+        if phone:
+            request.user.profile.phone = phone
+        if name:
+            parts = name.split(" ", 1)
+            request.user.first_name = parts[0]
+            if len(parts) > 1:
+                request.user.last_name = parts[1]
+            else:
+                request.user.last_name = ""
+        
         request.user.profile.save()
+        request.user.save()
 
-        return Response({"status": "email saved"})
+        return Response({"status": "profile saved"})
+
+
+from .models import Notification
+
+class NotificationListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        notifications = Notification.objects.filter(user=request.user).order_by("-created_at")
+        data = []
+        for n in notifications:
+            data.append({
+                "id": n.id,
+                "message": n.message,
+                "type": n.type,
+                "is_read": n.is_read,
+                "created_at": n.created_at
+            })
+        return Response(data)
+
+    def patch(self, request):
+        # Mark all as read
+        Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+        return Response({"status": "all marked as read"})
+
+
+class NotificationDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        try:
+            notification = Notification.objects.get(id=pk, user=request.user)
+            notification.is_read = True
+            notification.save()
+            return Response({"status": "marked as read"})
+        except Notification.DoesNotExist:
+            return Response({"error": "Notification not found"}, status=404)
