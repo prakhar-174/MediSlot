@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Input from './Input';
 import Button from './Button';
 import { User, Stethoscope } from 'lucide-react';
+import { fetchApi } from '../utils/api';
 
 const SignupForm = () => {
   const [role, setRole] = useState('patient');
@@ -56,17 +57,10 @@ const SignupForm = () => {
         payload.availableDays = formData.days;
       }
 
-      const res = await fetch('http://127.0.0.1:8000/api/auth/register/', {
+      const data = await fetchApi('/auth/register/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to create account');
-      }
 
       localStorage.setItem('token', data.access);
       localStorage.setItem('user', JSON.stringify({ role: data.role, name: data.name }));

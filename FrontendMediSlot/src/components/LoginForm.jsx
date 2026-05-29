@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Input from './Input';
 import Button from './Button';
 import { User, Stethoscope } from 'lucide-react';
+import { fetchApi } from '../utils/api';
 
 const LoginForm = () => {
   const [role, setRole] = useState('patient');
@@ -17,17 +18,10 @@ const LoginForm = () => {
     setError('');
 
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/auth/login/', {
+      const data = await fetchApi('/auth/login/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: email, password }),
       });
-      
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.error || 'Invalid email or password');
-      }
       
       localStorage.setItem('token', data.access);
       localStorage.setItem('user', JSON.stringify({ role: data.role, name: data.name }));
